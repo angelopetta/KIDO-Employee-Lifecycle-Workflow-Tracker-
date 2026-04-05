@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import { getStageConfig } from "@/lib/constants";
 import AdpMigrationClient from "@/components/AdpMigrationClient";
