@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { prisma } from "@/lib/prisma";
 import { getStatusConfig } from "@/lib/constants";
 import Link from "next/link";
