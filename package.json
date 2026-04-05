@@ -1,0 +1,20 @@
+{
+  "name": "kido-employee-lifecycle-workflow-tracker",
+  "version": "1.0.0",
+  "description": "A workflow tracking application for managing the full employee lifecycle",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test tests/**/*.test.js",
+    "lint": "eslint src/"
+  },
+  "keywords": [
+    "employee",
+    "lifecycle",
+    "workflow",
+    "tracker",
+    "onboarding",
+    "offboarding"
+  ],
+  "license": "ISC"
+}
