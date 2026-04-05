@@ -9,6 +9,7 @@ node_modules/
 # Build output
 dist/
 build/
+.next/
 
 # Logs
 logs/
@@ -31,3 +32,13 @@ coverage/
 # Temp
 tmp/
 temp/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+/src/generated/prisma

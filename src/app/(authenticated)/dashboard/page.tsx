@@ -1,0 +1,197 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { STAGES, getStatusConfig, getStageConfig } from "@/lib/constants";
+import Link from "next/link";
+
+export default async function DashboardPage() {
+  const session = await getServerSession(authOptions);
+  const user = session!.user;
+  const isAdmin = user.role === "admin" || user.role === "director";
+
+  const departments = await prisma.department.findMany({
+    orderBy: { displayOrder: "asc" },
+  });
+
+  const phases = await prisma.phase.findMany({
+    orderBy: { sequenceOrder: "asc" },
+  });
+
+  const phaseDetails = await prisma.phaseDetail.findMany({
+    include: { phase: true, department: true },
+    ...(isAdmin ? {} : { where: { departmentId: user.departmentId! } }),
+  });
+
+  // Group phase details by stage for progress cards
+  const stageProgress = STAGES.map((stage) => {
+    const stagePhaseDetails = phaseDetails.filter(
+      (pd) => pd.phase.stage === stage.key
+    );
+    const total = stagePhaseDetails.length;
+    const completed = stagePhaseDetails.filter(
+      (pd) => pd.status === "complete"
+    ).length;
+    const inProgress = stagePhaseDetails.filter(
+      (pd) => pd.status === "in_progress"
+    ).length;
+    const blocked = stagePhaseDetails.filter(
+      (pd) => pd.status === "blocked"
+    ).length;
+    return { ...stage, total, completed, inProgress, blocked };
+  });
+
+  // Recent activity
+  const recentActivity = await prisma.phaseDetail.findMany({
+    where: {
+      NOT: { status: "not_started" },
+      ...(isAdmin ? {} : { departmentId: user.departmentId! }),
+    },
+    include: { phase: true, department: true },
+    orderBy: { updatedAt: "desc" },
+    take: 10,
+  });
+
+  // Department status grid
+  const deptStatusData = departments.map((dept) => {
+    const deptDetails = phaseDetails.filter((pd) => pd.departmentId === dept.id);
+    return {
+      department: dept,
+      phases: phases
+        .filter((p) => p.departmentKeys.split(",").includes(dept.slug))
+        .map((p) => {
+          const detail = deptDetails.find((pd) => pd.phaseId === p.id);
+          return { phase: p, status: detail?.status ?? "na" };
+        }),
+    };
+  });
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">Dashboard</h1>
+
+      {/* Stage Progress Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {stageProgress.map((stage) => {
+          const stageConfig = getStageConfig(stage.key);
+          const pct = stage.total > 0 ? Math.round((stage.completed / stage.total) * 100) : 0;
+          return (
+            <div key={stage.key} className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className={`text-xs font-medium px-2 py-1 rounded-full ${stageConfig.color}`}>
+                  {stage.label}
+                </span>
+                <span className="text-2xl font-bold text-slate-900">{pct}%</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 mb-3">
+                <div
+                  className="bg-teal-500 h-2 rounded-full transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>{stage.completed} complete</span>
+                <span>{stage.inProgress} in progress</span>
+                {stage.blocked > 0 && (
+                  <span className="text-red-600">{stage.blocked} blocked</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Department Status Grid */}
+      {isAdmin && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 mb-8">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">
+            Department Status Overview
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-2 pr-4 font-medium text-slate-600">Department</th>
+                  {phases.map((p) => (
+                    <th key={p.id} className="px-1 py-2 text-center font-medium text-slate-600" title={p.name}>
+                      <span className="text-xs">{p.sequenceOrder}</span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {deptStatusData.map(({ department, phases: deptPhases }) => (
+                  <tr key={department.id} className="border-b border-slate-100">
+                    <td className="py-2 pr-4">
+                      <Link
+                        href={`/departments/${department.slug}`}
+                        className="text-teal-600 hover:text-teal-800 font-medium"
+                      >
+                        {department.name}
+                      </Link>
+                    </td>
+                    {/* Render a dot for each phase */}
+                    {(() => {
+                      const phaseMap = new Map(
+                        deptPhases.map((dp) => [dp.phase.id, dp.status])
+                      );
+                      return phases.map((p) => {
+                        const status = phaseMap.get(p.id);
+                        if (!status) {
+                          return <td key={p.id} className="px-1 py-2 text-center"><span className="text-slate-200">-</span></td>;
+                        }
+                        const cfg = getStatusConfig(status);
+                        return (
+                          <td key={p.id} className="px-1 py-2 text-center">
+                            <span className={`inline-block w-3 h-3 rounded-full ${cfg.color.split(" ")[0]}`} title={`${p.name}: ${cfg.label}`} />
+                          </td>
+                        );
+                      });
+                    })()}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-3 flex gap-4 text-xs text-slate-500">
+              <span>Phases: 1-6 Recruitment, 7-9 Onboarding, 10-12 Development, 13-16 Offboarding</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Activity */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
+        <h2 className="text-lg font-semibold text-slate-800 mb-4">Recent Activity</h2>
+        {recentActivity.length === 0 ? (
+          <p className="text-sm text-slate-500">No activity yet. Start updating phase details to see activity here.</p>
+        ) : (
+          <div className="space-y-3">
+            {recentActivity.map((pd) => {
+              const statusCfg = getStatusConfig(pd.status);
+              return (
+                <div key={pd.id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                  <div>
+                    <Link
+                      href={`/departments/${pd.department.slug}/phases/${pd.phase.slug}`}
+                      className="text-sm font-medium text-teal-600 hover:text-teal-800"
+                    >
+                      {pd.phase.name}
+                    </Link>
+                    <span className="text-sm text-slate-500"> — {pd.department.name}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs px-2 py-1 rounded-full ${statusCfg.color}`}>
+                      {statusCfg.label}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {pd.updatedAt.toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  name         String
+  role         String      // "admin" | "director" | "dept_lead" | "dept_staff"
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Department {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  slug         String        @unique
+  displayOrder Int
+  users        User[]
+  phaseDetails PhaseDetail[]
+  documents    Document[]
+}
+
+model Phase {
+  id             String         @id @default(cuid())
+  name           String
+  slug           String         @unique
+  stage          String         // "recruitment" | "onboarding" | "development" | "offboarding"
+  sequenceOrder  Int            @unique
+  departmentKeys String         // comma-separated dept slugs
+  phaseDetails   PhaseDetail[]
+  documents      Document[]
+  migrationMap   MigrationMap?
+}
+
+model PhaseDetail {
+  id               String     @id @default(cuid())
+  phaseId          String
+  phase            Phase      @relation(fields: [phaseId], references: [id])
+  departmentId     String
+  department       Department @relation(fields: [departmentId], references: [id])
+  trigger          String     @default("")
+  actionsSteps     String     @default("")
+  documentsUsed    String     @default("")
+  documentsCreated String     @default("")
+  systemsTools     String     @default("")
+  inputsFrom       String     @default("")
+  outputsTo        String     @default("")
+  timeline         String     @default("")
+  painPoints       String     @default("")
+  compliance       String     @default("")
+  status           String     @default("not_started")
+  notes            String     @default("")
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@unique([phaseId, departmentId])
+}
+
+model Document {
+  id            String      @id @default(cuid())
+  name          String
+  type          String      // "template" | "form" | "checklist" | "policy" | "other"
+  format        String      @default("")
+  location      String      @default("")
+  phaseId       String?
+  phase         Phase?      @relation(fields: [phaseId], references: [id])
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  collected     Boolean     @default(false)
+  adpEquivalent String      @default("")
+  notes         String      @default("")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model MigrationMap {
+  id              String @id @default(cuid())
+  phaseId         String @unique
+  phase           Phase  @relation(fields: [phaseId], references: [id])
+  targetAdpModule String @default("")
+  requiredConfig  String @default("")
+  automationType  String @default("") // "full" | "partial" | "manual" | "none"
+  migrationStatus String @default("not_started")
+  notes           String @default("")
+}
