@@ -375,7 +375,7 @@ export default async function DashboardPage() {
                 ))}
               </tbody>
             </table>
-            <div className="mt-3 space-y-1 text-xs text-slate-500">
+            <div className="mt-3 space-y-3 text-xs text-slate-500">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block w-3 h-3 rounded-full border-2 border-slate-300 bg-white" />
@@ -398,7 +398,30 @@ export default async function DashboardPage() {
                   Blocked
                 </span>
               </div>
-              <div>Phases: 1-6 Recruitment, 7-9 Onboarding, 10-12 Development, 13-16 Offboarding</div>
+              {/* Phase index — grouped by stage so the 4 pillars double as column headers */}
+              <div className="pt-3 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
+                {STAGES.map((stage) => {
+                  const stagePhases = phases.filter((p) => p.stage === stage.key);
+                  if (stagePhases.length === 0) return null;
+                  return (
+                    <div key={stage.key}>
+                      <div className={`inline-block text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1.5 ${stage.color}`}>
+                        {stage.label}
+                      </div>
+                      <ul className="space-y-0.5">
+                        {stagePhases.map((p) => (
+                          <li key={p.id} className="text-slate-600 leading-snug">
+                            <span className="inline-block w-5 text-right tabular-nums text-slate-400 mr-1">
+                              {p.sequenceOrder}.
+                            </span>
+                            {p.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
