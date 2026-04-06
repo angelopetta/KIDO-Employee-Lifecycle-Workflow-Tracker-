@@ -67,9 +67,175 @@ export default async function DashboardPage() {
     };
   });
 
+  // ---- Capture Progress -------------------------------------------------
+  // A cell is "captured" when any of the 11 free-text fields has content.
+  // (Status alone doesn't count — we want to measure real data capture.)
+  const CAPTURE_FIELDS = [
+    "trigger",
+    "actionsSteps",
+    "documentsUsed",
+    "documentsCreated",
+    "systemsTools",
+    "inputsFrom",
+    "outputsTo",
+    "timeline",
+    "painPoints",
+    "compliance",
+    "notes",
+  ] as const;
+
+  function isCaptured(pd: (typeof phaseDetails)[number] | undefined): boolean {
+    if (!pd) return false;
+    return CAPTURE_FIELDS.some((k) => {
+      const v = (pd as unknown as Record<string, string>)[k];
+      return typeof v === "string" && v.trim().length > 0;
+    });
+  }
+
+  // Visible departments depend on the user's role (dept_lead/staff see only their own)
+  const visibleDepartments = isAdmin
+    ? departments
+    : departments.filter((d) => d.id === user.departmentId);
+
+  // Build the universe of "applicable" (phase, department) cells from
+  // phase.departmentKeys, then count how many are captured.
+  const applicableCells: { phaseId: string; departmentId: string; stage: string }[] = [];
+  for (const phase of phases) {
+    const phaseDeptSlugs = phase.departmentKeys.split(",").map((s) => s.trim());
+    for (const dept of visibleDepartments) {
+      if (phaseDeptSlugs.includes(dept.slug)) {
+        applicableCells.push({ phaseId: phase.id, departmentId: dept.id, stage: phase.stage });
+      }
+    }
+  }
+
+  const detailByCell = new Map(
+    phaseDetails.map((pd) => [`${pd.phaseId}:${pd.departmentId}`, pd])
+  );
+
+  const totalCells = applicableCells.length;
+  const capturedCells = applicableCells.filter((c) =>
+    isCaptured(detailByCell.get(`${c.phaseId}:${c.departmentId}`))
+  ).length;
+  const capturePct = totalCells > 0 ? Math.round((capturedCells / totalCells) * 100) : 0;
+
+  // Per-stage capture breakdown
+  const captureByStage = STAGES.map((stage) => {
+    const cells = applicableCells.filter((c) => c.stage === stage.key);
+    const captured = cells.filter((c) =>
+      isCaptured(detailByCell.get(`${c.phaseId}:${c.departmentId}`))
+    ).length;
+    return {
+      ...stage,
+      total: cells.length,
+      captured,
+      pct: cells.length > 0 ? Math.round((captured / cells.length) * 100) : 0,
+    };
+  });
+
+  // Next 3 phases to capture — walk phases in sequence order and pick the
+  // first 3 that still have any missing departments.
+  const nextToCapture: {
+    phase: (typeof phases)[number];
+    missing: { id: string; name: string; slug: string }[];
+  }[] = [];
+  for (const phase of phases) {
+    if (nextToCapture.length >= 3) break;
+    const phaseDeptSlugs = phase.departmentKeys.split(",").map((s) => s.trim());
+    const missing = visibleDepartments
+      .filter((d) => phaseDeptSlugs.includes(d.slug))
+      .filter((d) => !isCaptured(detailByCell.get(`${phase.id}:${d.id}`)))
+      .map((d) => ({ id: d.id, name: d.name, slug: d.slug }));
+    if (missing.length > 0) {
+      nextToCapture.push({ phase, missing });
+    }
+  }
+  // -----------------------------------------------------------------------
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Dashboard</h1>
+
+      {/* Capture Progress Banner */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 mb-6">
+        <div className="flex items-baseline justify-between mb-2">
+          <h2 className="text-lg font-semibold text-slate-800">
+            {isAdmin ? "Capture Progress" : "My Department's Capture Progress"}
+          </h2>
+          <span className="text-3xl font-bold text-teal-600">{capturePct}%</span>
+        </div>
+        <p className="text-sm text-slate-600 mb-3">
+          <strong>{capturedCells}</strong> of <strong>{totalCells}</strong> phase-department cells captured
+          {totalCells - capturedCells > 0 && (
+            <> &nbsp;·&nbsp; <span className="text-slate-500">{totalCells - capturedCells} remaining</span></>
+          )}
+        </p>
+        <div className="w-full bg-slate-100 rounded-full h-3 mb-4">
+          <div
+            className="bg-teal-500 h-3 rounded-full transition-all"
+            style={{ width: `${capturePct}%` }}
+          />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {captureByStage.map((s) => (
+            <div key={s.key} className="border border-slate-200 rounded-md p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.color}`}>
+                  {s.label}
+                </span>
+                <span className="text-sm font-semibold text-slate-700">{s.pct}%</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1">
+                <div
+                  className="bg-teal-500 h-1.5 rounded-full transition-all"
+                  style={{ width: `${s.pct}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-500">
+                {s.captured} / {s.total} captured
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Next 3 to capture */}
+        {nextToCapture.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-slate-100">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              Next to capture
+            </h3>
+            <ul className="space-y-1.5">
+              {nextToCapture.map(({ phase, missing }) => (
+                <li key={phase.id} className="text-sm flex flex-wrap items-center gap-x-2">
+                  <Link
+                    href={`/phases`}
+                    className="font-medium text-teal-700 hover:text-teal-900"
+                  >
+                    {phase.sequenceOrder}. {phase.name}
+                  </Link>
+                  <span className="text-slate-400 text-xs">
+                    ({missing.length} {missing.length === 1 ? "department" : "departments"} remaining:{" "}
+                    {missing.map((d) => d.name).join(", ")})
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {isAdmin && (
+              <Link
+                href="/bulk-import"
+                className="inline-block mt-3 text-xs font-medium text-teal-600 hover:text-teal-800"
+              >
+                Bulk import one of these phases →
+              </Link>
+            )}
+          </div>
+        )}
+        {nextToCapture.length === 0 && totalCells > 0 && (
+          <div className="mt-5 pt-4 border-t border-slate-100 text-sm text-green-700">
+            All applicable phase-department cells have been captured. 🎉
+          </div>
+        )}
+      </div>
 
       {/* Stage Progress Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
