@@ -32,7 +32,7 @@ export default function Sidebar() {
       : null;
 
   return (
-    <aside className="w-64 bg-slate-900 text-white flex flex-col min-h-screen">
+    <aside className="w-64 bg-slate-900 text-white flex flex-col min-h-screen print:hidden">
       <div className="p-4 border-b border-slate-700">
         <Link href="/dashboard" className="block">
           <h1 className="text-lg font-bold">KIDO</h1>

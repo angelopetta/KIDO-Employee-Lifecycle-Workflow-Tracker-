@@ -8,7 +8,7 @@ export default function Header() {
   const user = session?.user;
 
   return (
-    <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+    <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between print:hidden">
       <h2 className="text-lg font-semibold text-slate-800">
         Employee Lifecycle Workflow Tracker
       </h2>

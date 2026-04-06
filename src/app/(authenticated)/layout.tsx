@@ -13,7 +13,7 @@ export default function AuthenticatedLayout({
         <Sidebar />
         <div className="flex-1 flex flex-col">
           <Header />
-          <main className="flex-1 p-6 bg-slate-50">{children}</main>
+          <main className="flex-1 p-6 bg-slate-50 print:p-0 print:bg-white">{children}</main>
         </div>
       </div>
     </SessionProvider>
