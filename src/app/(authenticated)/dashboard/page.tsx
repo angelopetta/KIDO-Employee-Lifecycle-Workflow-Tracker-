@@ -156,6 +156,47 @@ export default async function DashboardPage() {
     <div>
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Dashboard</h1>
 
+      {/* Welcome / empty state — shown only when nothing is captured yet */}
+      {totalCells > 0 && capturedCells === 0 && (
+        <div className="bg-gradient-to-br from-teal-50 to-blue-50 border border-teal-200 rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">
+            Welcome{user.name ? `, ${user.name.split(" ")[0]}` : ""} — let&apos;s get started
+          </h2>
+          <p className="text-sm text-slate-700 mb-4">
+            {isAdmin
+              ? "No workflow data has been captured yet. The fastest way to get going is to pick a phase and bulk-import its data across all applicable departments in one shot."
+              : "No workflow data has been captured for your department yet. Open any phase in your department to start filling in the 11 capture fields."}
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {isAdmin ? (
+              <>
+                <Link
+                  href="/bulk-import"
+                  className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 text-sm font-medium"
+                >
+                  Start Bulk Import
+                </Link>
+                <Link
+                  href="/departments"
+                  className="bg-white text-teal-700 border border-teal-600 px-4 py-2 rounded-md hover:bg-teal-50 text-sm font-medium"
+                >
+                  Browse Departments
+                </Link>
+              </>
+            ) : (
+              user.departmentSlug && (
+                <Link
+                  href={`/departments/${user.departmentSlug}`}
+                  className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 text-sm font-medium"
+                >
+                  Go to My Department
+                </Link>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Capture Progress Banner */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 mb-6">
         <div className="flex items-baseline justify-between mb-2">
@@ -334,7 +375,7 @@ export default async function DashboardPage() {
                 ))}
               </tbody>
             </table>
-            <div className="mt-3 space-y-1 text-xs text-slate-500">
+            <div className="mt-3 space-y-3 text-xs text-slate-500">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block w-3 h-3 rounded-full border-2 border-slate-300 bg-white" />
@@ -357,7 +398,30 @@ export default async function DashboardPage() {
                   Blocked
                 </span>
               </div>
-              <div>Phases: 1-6 Recruitment, 7-9 Onboarding, 10-12 Development, 13-16 Offboarding</div>
+              {/* Phase index — grouped by stage so the 4 pillars double as column headers */}
+              <div className="pt-3 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
+                {STAGES.map((stage) => {
+                  const stagePhases = phases.filter((p) => p.stage === stage.key);
+                  if (stagePhases.length === 0) return null;
+                  return (
+                    <div key={stage.key}>
+                      <div className={`inline-block text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1.5 ${stage.color}`}>
+                        {stage.label}
+                      </div>
+                      <ul className="space-y-0.5">
+                        {stagePhases.map((p) => (
+                          <li key={p.id} className="text-slate-600 leading-snug">
+                            <span className="inline-block w-5 text-right tabular-nums text-slate-400 mr-1">
+                              {p.sequenceOrder}.
+                            </span>
+                            {p.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

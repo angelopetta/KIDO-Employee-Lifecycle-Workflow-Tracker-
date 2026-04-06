@@ -36,7 +36,15 @@ export default async function DepartmentPage({
         <Link href="/departments" className="text-sm text-teal-600 hover:text-teal-800">
           &larr; All Departments
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900 mt-2">{department.name}</h1>
+        <div className="flex items-center justify-between mt-2 gap-4">
+          <h1 className="text-2xl font-bold text-slate-900">{department.name}</h1>
+          <Link
+            href={`/departments/${slug}/print`}
+            className="text-sm text-teal-600 hover:text-teal-800 border border-teal-600 hover:border-teal-800 px-3 py-1.5 rounded-md whitespace-nowrap"
+          >
+            Printable view
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-6">
