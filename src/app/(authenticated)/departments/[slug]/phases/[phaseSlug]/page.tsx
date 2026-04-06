@@ -64,7 +64,7 @@ export default async function PhaseDetailPage({
       </div>
 
       <PhaseDetailForm
-        phaseDetail={phaseDetail}
+        phaseDetail={{ ...phaseDetail, updatedAt: phaseDetail.updatedAt.toISOString() }}
         canEdit={canEdit}
       />
     </div>

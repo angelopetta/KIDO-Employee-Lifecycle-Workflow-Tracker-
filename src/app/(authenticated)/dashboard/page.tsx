@@ -53,20 +53,6 @@ export default async function DashboardPage() {
     take: 10,
   });
 
-  // Department status grid
-  const deptStatusData = departments.map((dept) => {
-    const deptDetails = phaseDetails.filter((pd) => pd.departmentId === dept.id);
-    return {
-      department: dept,
-      phases: phases
-        .filter((p) => p.departmentKeys.split(",").includes(dept.slug))
-        .map((p) => {
-          const detail = deptDetails.find((pd) => pd.phaseId === p.id);
-          return { phase: p, status: detail?.status ?? "na" };
-        }),
-    };
-  });
-
   // ---- Capture Progress -------------------------------------------------
   // A cell is "captured" when any of the 11 free-text fields has content.
   // (Status alone doesn't count — we want to measure real data capture.)
@@ -91,6 +77,20 @@ export default async function DashboardPage() {
       return typeof v === "string" && v.trim().length > 0;
     });
   }
+
+  // Department status grid (now includes captured flag per cell)
+  const deptStatusData = departments.map((dept) => {
+    const deptDetails = phaseDetails.filter((pd) => pd.departmentId === dept.id);
+    return {
+      department: dept,
+      phases: phases
+        .filter((p) => p.departmentKeys.split(",").includes(dept.slug))
+        .map((p) => {
+          const detail = deptDetails.find((pd) => pd.phaseId === p.id);
+          return { phase: p, status: detail?.status ?? "na", captured: isCaptured(detail) };
+        }),
+    };
+  });
 
   // Visible departments depend on the user's role (dept_lead/staff see only their own)
   const visibleDepartments = isAdmin
@@ -301,17 +301,31 @@ export default async function DashboardPage() {
                     {/* Render a dot for each phase */}
                     {(() => {
                       const phaseMap = new Map(
-                        deptPhases.map((dp) => [dp.phase.id, dp.status])
+                        deptPhases.map((dp) => [dp.phase.id, dp])
                       );
                       return phases.map((p) => {
-                        const status = phaseMap.get(p.id);
-                        if (!status) {
+                        const cell = phaseMap.get(p.id);
+                        if (!cell) {
                           return <td key={p.id} className="px-1 py-2 text-center"><span className="text-slate-200">-</span></td>;
                         }
-                        const cfg = getStatusConfig(status);
+                        const cfg = getStatusConfig(cell.status);
+                        if (!cell.captured) {
+                          // Empty cell — hollow ring signals "no content yet"
+                          return (
+                            <td key={p.id} className="px-1 py-2 text-center">
+                              <span
+                                className="inline-block w-3 h-3 rounded-full border-2 border-slate-300 bg-white"
+                                title={`${p.name}: empty`}
+                              />
+                            </td>
+                          );
+                        }
                         return (
                           <td key={p.id} className="px-1 py-2 text-center">
-                            <span className={`inline-block w-3 h-3 rounded-full ${cfg.color.split(" ")[0]}`} title={`${p.name}: ${cfg.label}`} />
+                            <span
+                              className={`inline-block w-3 h-3 rounded-full ${cfg.color.split(" ")[0]}`}
+                              title={`${p.name}: ${cfg.label}`}
+                            />
                           </td>
                         );
                       });
@@ -320,8 +334,30 @@ export default async function DashboardPage() {
                 ))}
               </tbody>
             </table>
-            <div className="mt-3 flex gap-4 text-xs text-slate-500">
-              <span>Phases: 1-6 Recruitment, 7-9 Onboarding, 10-12 Development, 13-16 Offboarding</span>
+            <div className="mt-3 space-y-1 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-full border-2 border-slate-300 bg-white" />
+                  Empty
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-full bg-slate-100" />
+                  Not started
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-full bg-yellow-100" />
+                  In progress
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-full bg-green-100" />
+                  Complete
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-full bg-red-100" />
+                  Blocked
+                </span>
+              </div>
+              <div>Phases: 1-6 Recruitment, 7-9 Onboarding, 10-12 Development, 13-16 Offboarding</div>
             </div>
           </div>
         </div>
