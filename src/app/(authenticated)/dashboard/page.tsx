@@ -132,6 +132,24 @@ export default async function DashboardPage() {
       pct: cells.length > 0 ? Math.round((captured / cells.length) * 100) : 0,
     };
   });
+
+  // Next 3 phases to capture — walk phases in sequence order and pick the
+  // first 3 that still have any missing departments.
+  const nextToCapture: {
+    phase: (typeof phases)[number];
+    missing: { id: string; name: string; slug: string }[];
+  }[] = [];
+  for (const phase of phases) {
+    if (nextToCapture.length >= 3) break;
+    const phaseDeptSlugs = phase.departmentKeys.split(",").map((s) => s.trim());
+    const missing = visibleDepartments
+      .filter((d) => phaseDeptSlugs.includes(d.slug))
+      .filter((d) => !isCaptured(detailByCell.get(`${phase.id}:${d.id}`)))
+      .map((d) => ({ id: d.id, name: d.name, slug: d.slug }));
+    if (missing.length > 0) {
+      nextToCapture.push({ phase, missing });
+    }
+  }
   // -----------------------------------------------------------------------
 
   return (
@@ -179,6 +197,44 @@ export default async function DashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* Next 3 to capture */}
+        {nextToCapture.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-slate-100">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              Next to capture
+            </h3>
+            <ul className="space-y-1.5">
+              {nextToCapture.map(({ phase, missing }) => (
+                <li key={phase.id} className="text-sm flex flex-wrap items-center gap-x-2">
+                  <Link
+                    href={`/phases`}
+                    className="font-medium text-teal-700 hover:text-teal-900"
+                  >
+                    {phase.sequenceOrder}. {phase.name}
+                  </Link>
+                  <span className="text-slate-400 text-xs">
+                    ({missing.length} {missing.length === 1 ? "department" : "departments"} remaining:{" "}
+                    {missing.map((d) => d.name).join(", ")})
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {isAdmin && (
+              <Link
+                href="/bulk-import"
+                className="inline-block mt-3 text-xs font-medium text-teal-600 hover:text-teal-800"
+              >
+                Bulk import one of these phases →
+              </Link>
+            )}
+          </div>
+        )}
+        {nextToCapture.length === 0 && totalCells > 0 && (
+          <div className="mt-5 pt-4 border-t border-slate-100 text-sm text-green-700">
+            All applicable phase-department cells have been captured. 🎉
+          </div>
+        )}
       </div>
 
       {/* Stage Progress Cards */}
