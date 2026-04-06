@@ -13,6 +13,7 @@ const allNavItems = [
   { href: "/gap-analysis", label: "Gap Analysis", roles: ["admin", "director", "dept_lead"] },
   { href: "/adp-migration", label: "ADP Migration", roles: ["admin", "director"] },
   { href: "/export", label: "Export Data", roles: ["admin", "director", "dept_lead"] },
+  { href: "/bulk-import", label: "Bulk Import", roles: ["admin", "dept_lead"] },
   { href: "/admin/users", label: "User Management", roles: ["admin"] },
 ];
 
