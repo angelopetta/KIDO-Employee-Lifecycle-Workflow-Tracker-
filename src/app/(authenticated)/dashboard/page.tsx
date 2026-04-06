@@ -206,12 +206,13 @@ export default async function DashboardPage() {
             </h3>
             <ul className="space-y-1.5">
               {nextToCapture.map(({ phase, missing }) => (
-                <li key={phase.id} className="text-sm flex flex-wrap items-center gap-x-2">
+                <li key={phase.id} className="text-sm flex flex-wrap items-baseline gap-x-2">
                   <Link
                     href={`/phases`}
                     className="font-medium text-teal-700 hover:text-teal-900"
                   >
-                    {phase.sequenceOrder}. {phase.name}
+                    <span className="text-slate-500 font-normal">Phase {phase.sequenceOrder} — </span>
+                    {phase.name}
                   </Link>
                   <span className="text-slate-400 text-xs">
                     ({missing.length} {missing.length === 1 ? "department" : "departments"} remaining:{" "}
