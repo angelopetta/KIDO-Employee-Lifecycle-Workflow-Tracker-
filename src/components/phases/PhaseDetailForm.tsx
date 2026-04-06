@@ -20,14 +20,14 @@ interface PhaseDetailData {
 }
 
 const FIELDS: { key: string; label: string; hint: string; multiline: boolean; highlight?: boolean }[] = [
-  { key: "trigger", label: "Trigger", hint: "What kicks off this phase (email, verbal, system notification, automatic)", multiline: false },
+  { key: "trigger", label: "Trigger", hint: "What kicks off this phase (email, verbal, system notification, automatic)", multiline: true },
   { key: "actionsSteps", label: "Actions / Steps", hint: "What actually happens — not what policy says, but what staff really do", multiline: true },
   { key: "documentsUsed", label: "Documents Used", hint: "Templates, forms, checklists consumed in this phase", multiline: true },
   { key: "documentsCreated", label: "Documents Created", hint: "Outputs produced; who receives them", multiline: true },
   { key: "systemsTools", label: "Systems / Tools", hint: "ADP, email, shared drives, paper files, Excel, etc.", multiline: true },
   { key: "inputsFrom", label: "Inputs From", hint: "What this department needs from other departments to act", multiline: true },
   { key: "outputsTo", label: "Outputs To", hint: "What this department passes to downstream departments", multiline: true },
-  { key: "timeline", label: "Timeline", hint: "How long this phase takes; SLAs or deadlines", multiline: false },
+  { key: "timeline", label: "Timeline", hint: "How long this phase takes; SLAs or deadlines", multiline: true },
   { key: "painPoints", label: "Pain Points", hint: "What breaks, what's slow, what gets missed", multiline: true, highlight: true },
   { key: "compliance", label: "Compliance", hint: "Regulatory, legal, or policy requirements tied to this phase", multiline: true },
   { key: "notes", label: "Notes", hint: "Meeting notes, additional context, action items", multiline: true },
