@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { hashSync } from "bcryptjs";
+import * as readline from "readline";
 
 const prisma = new PrismaClient();
 
@@ -32,7 +33,43 @@ const phases = [
   { name: "Post-Departure", slug: "post-departure", stage: "offboarding", sequenceOrder: 16, depts: ["hr", "finance", "it"] },
 ];
 
+function askConfirmation(question: string): Promise<boolean> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === "y" || answer.toLowerCase() === "yes");
+    });
+  });
+}
+
 async function main() {
+  // Safety check: if data already exists, warn before proceeding
+  const existingUsers = await prisma.user.count();
+  const existingPhaseDetails = await prisma.phaseDetail.count();
+
+  if (existingUsers > 0 || existingPhaseDetails > 0) {
+    console.log("\n⚠️  WARNING: The database already contains data!");
+    console.log(`   - ${existingUsers} users`);
+    console.log(`   - ${existingPhaseDetails} phase details`);
+    console.log("\n   Running the seed will DELETE ALL EXISTING DATA");
+    console.log("   including any workflow information you have entered.\n");
+
+    // Check if --force flag was passed
+    if (process.argv.includes("--force")) {
+      console.log("   --force flag detected. Proceeding with seed...\n");
+    } else {
+      const confirmed = await askConfirmation("   Are you sure you want to continue? (yes/no): ");
+      if (!confirmed) {
+        console.log("\n   Seed cancelled. Your data is safe.\n");
+        return;
+      }
+    }
+  }
+
   console.log("Seeding database...");
 
   // Clear existing data
