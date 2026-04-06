@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { STATUS_OPTIONS } from "@/lib/constants";
 
 interface PhaseDetailData {
@@ -17,6 +17,20 @@ interface PhaseDetailData {
   compliance: string;
   status: string;
   notes: string;
+  updatedAt?: string;
+}
+
+function formatUpdatedAt(iso?: string): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 const FIELDS: { key: string; label: string; hint: string; multiline: boolean; highlight?: boolean }[] = [
@@ -40,7 +54,7 @@ export default function PhaseDetailForm({
   phaseDetail: PhaseDetailData;
   canEdit: boolean;
 }) {
-  const [formData, setFormData] = useState({
+  const initialData = {
     trigger: phaseDetail.trigger,
     actionsSteps: phaseDetail.actionsSteps,
     documentsUsed: phaseDetail.documentsUsed,
@@ -53,9 +67,18 @@ export default function PhaseDetailForm({
     compliance: phaseDetail.compliance,
     status: phaseDetail.status,
     notes: phaseDetail.notes,
-  });
+  };
+  const [formData, setFormData] = useState(initialData);
+  const savedSnapshotRef = useRef(JSON.stringify(initialData));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | undefined>(phaseDetail.updatedAt);
+
+  const isDirty = useMemo(
+    () => JSON.stringify(formData) !== savedSnapshotRef.current,
+    [formData]
+  );
+  const lastUpdatedLabel = formatUpdatedAt(lastUpdatedAt);
 
   function handleChange(key: string, value: string) {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -74,6 +97,13 @@ export default function PhaseDetailForm({
         const data = await res.json();
         throw new Error(data.error || "Failed to save");
       }
+      const updated = await res.json();
+      savedSnapshotRef.current = JSON.stringify(formData);
+      if (updated?.updatedAt) {
+        setLastUpdatedAt(
+          typeof updated.updatedAt === "string" ? updated.updatedAt : new Date(updated.updatedAt).toISOString()
+        );
+      }
       setMessage({ type: "success", text: "Saved successfully" });
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
@@ -85,6 +115,13 @@ export default function PhaseDetailForm({
 
   return (
     <div className="space-y-6">
+      {/* Last updated */}
+      {lastUpdatedLabel && (
+        <p className="text-xs text-slate-500">
+          Last updated: <span className="text-slate-700">{lastUpdatedLabel}</span>
+        </p>
+      )}
+
       {/* Status selector */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-5">
         <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
@@ -144,11 +181,21 @@ export default function PhaseDetailForm({
         <div className="flex items-center gap-4">
           <button
             onClick={handleSave}
-            disabled={saving}
-            className="bg-teal-600 text-white px-6 py-2 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={saving || !isDirty}
+            className={`px-6 py-2 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed transition-colors ${
+              isDirty
+                ? "bg-teal-600 hover:bg-teal-700 focus:ring-teal-500"
+                : "bg-slate-300 focus:ring-slate-300"
+            }`}
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? "Saving..." : isDirty ? "Save Changes" : "Saved"}
           </button>
+          {isDirty && !saving && (
+            <span className="flex items-center gap-1.5 text-xs text-amber-700">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+              Unsaved changes
+            </span>
+          )}
           {message && (
             <span
               className={`text-sm ${
